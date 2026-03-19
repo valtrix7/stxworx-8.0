@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import * as Shared from '../shared';
-import { getLeaderboard, getProjects, toAppJob, toDisplayName } from '../lib/api';
+import { formatAddress, formatRelativeTime, getLeaderboard, getProjects, getSocialFeed, toApiAssetUrl, toAppJob, toDisplayName, type ApiSocialPost } from '../lib/api';
 import type { ApiLeaderboardEntry } from '../types/leaderboard';
 import type { AppJob } from '../types/job';
 
@@ -20,17 +20,20 @@ export const HomePage = () => {
   const navigate = useNavigate();
   const [featuredJobs, setFeaturedJobs] = useState<AppJob[]>([]);
   const [topFreelancers, setTopFreelancers] = useState<ApiLeaderboardEntry[]>([]);
+  const [feedPosts, setFeedPosts] = useState<ApiSocialPost[]>([]);
 
   useEffect(() => {
     const loadHomeData = async () => {
       try {
-        const [projects, leaderboard] = await Promise.all([
+        const [projects, leaderboard, feed] = await Promise.all([
           getProjects(),
           getLeaderboard(),
+          getSocialFeed().catch(() => []),
         ]);
 
         setFeaturedJobs(projects.slice(0, 2).map(toAppJob));
         setTopFreelancers(leaderboard.slice(0, 4));
+        setFeedPosts(feed.slice(0, 4));
       } catch (error) {
         console.error('Failed to load home page data:', error);
       }
@@ -138,32 +141,45 @@ export const HomePage = () => {
         <section className="mb-20">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-black">Main Feed</h2>
-            <button className="text-accent-orange text-sm font-bold flex items-center gap-2">
+            <button onClick={() => navigate('/profile')} className="text-accent-orange text-sm font-bold flex items-center gap-2">
               View All <ChevronRight size={16} />
             </button>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {[1, 2, 3, 4].map((post) => (
-              <div key={post} className="card p-6">
+            {feedPosts.map((post) => {
+              const authorName = post.authorUsername?.trim() || formatAddress(post.authorStxAddress) || 'Anonymous User';
+              const avatarUrl = toApiAssetUrl(post.authorAvatar);
+
+              return (
+              <div key={post.id} className="card p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <img src={`https://picsum.photos/seed/user${post}/100/100`} className="w-10 h-10 rounded-[10px] object-cover" alt="Avatar" referrerPolicy="no-referrer" />
+                    {avatarUrl ? (
+                      <img src={avatarUrl} className="w-10 h-10 rounded-[10px] object-cover" alt="Avatar" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center text-[10px] font-black uppercase">
+                        {authorName.slice(0, 2)}
+                      </div>
+                    )}
                     <div>
-                      <h4 className="font-bold text-sm">User {post}</h4>
-                      <p className="text-xs text-muted">{post} hours ago</p>
+                      <h4 className="font-bold text-sm">{authorName}</h4>
+                      <p className="text-xs text-muted">{formatRelativeTime(post.createdAt)}</p>
                     </div>
                   </div>
                   <button className="text-muted hover:text-ink"><MoreHorizontal size={16} /></button>
                 </div>
-                <p className="text-sm mb-4">Sharing some recent progress on the new project! What do you guys think? #stxworx #design</p>
-                <img src={`https://picsum.photos/seed/feed${post + 10}/800/400`} className="w-full rounded-[15px] mb-4 object-cover max-h-64" alt="Post content" referrerPolicy="no-referrer" />
+                {post.content && <p className="text-sm mb-4">{post.content}</p>}
+                {post.imageUrl && <img src={toApiAssetUrl(post.imageUrl)} className="w-full rounded-[15px] mb-4 object-cover max-h-64" alt="Post content" referrerPolicy="no-referrer" />}
                 <div className="flex items-center gap-6 text-muted border-t border-border pt-4">
-                  <button className="flex items-center gap-2 text-xs font-bold hover:text-accent-red transition-colors"><Heart size={16} /> {20 + post * 5}</button>
-                  <button className="flex items-center gap-2 text-xs font-bold hover:text-accent-blue transition-colors"><MessageCircle size={16} /> {post * 2}</button>
+                  <button className={`flex items-center gap-2 text-xs font-bold transition-colors ${post.likedByViewer ? 'text-accent-red' : 'hover:text-accent-red'}`}><Heart size={16} /> {post.likesCount}</button>
+                  <button className="flex items-center gap-2 text-xs font-bold hover:text-accent-blue transition-colors"><MessageCircle size={16} /> {post.commentsCount}</button>
                   <button className="flex items-center gap-2 text-xs font-bold hover:text-accent-orange transition-colors ml-auto"><Share size={16} /> Share</button>
                 </div>
               </div>
-            ))}
+            )})}
+            {feedPosts.length === 0 && (
+              <div className="card p-6 text-sm text-muted lg:col-span-2">No posts have been shared yet.</div>
+            )}
           </div>
         </section>
 

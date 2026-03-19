@@ -87,7 +87,8 @@ export const messagesService = {
       conversationParticipantsMap.get(p.conversationId)!.push(p.userId);
     });
 
-    for (const [conversationId, participantIds] of conversationParticipantsMap) {
+    for (const conversationId of conversationParticipantsMap.keys()) {
+      const participantIds = conversationParticipantsMap.get(conversationId)!;
       if (participantIds.length === 2 && participantIds.includes(otherUserId)) {
         const [existing] = await db.select().from(conversations).where(eq(conversations.id, conversationId));
         return existing || null;
@@ -97,7 +98,7 @@ export const messagesService = {
     return this.createNewConversation(userId, otherUserId);
   },
 
-  private async createNewConversation(userId: number, otherUserId: number) {
+  async createNewConversation(userId: number, otherUserId: number) {
     const [result] = await db.insert(conversations).values({});
     await db.insert(conversationParticipants).values([
       { conversationId: result.insertId, userId, lastReadAt: new Date() },

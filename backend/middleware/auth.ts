@@ -50,6 +50,21 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
   next();
 };
 
+export const optionalAuth = (req: Request, _res: Response, next: NextFunction) => {
+  const token = req.cookies?.[COOKIE_NAME];
+
+  if (!token) {
+    return next();
+  }
+
+  const payload = verifyUserToken(token);
+  if (payload) {
+    req.user = payload;
+  }
+
+  next();
+};
+
 export const requireRole = (role: "client" | "freelancer") => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {

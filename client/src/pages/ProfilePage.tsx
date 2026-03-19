@@ -21,6 +21,7 @@ import {
   getConnections,
   getMyBountyDashboard,
   getSocialPosts,
+  toApiAssetUrl,
   getUserProfile,
   getUserNfts,
   getUserProjects,
@@ -163,6 +164,10 @@ export const ProfilePage = ({ userRole }: { userRole: 'client' | 'freelancer' | 
 
   const [portfolioLinks, setPortfolioLinks] = useState<{ id: number; title: string; url: string; icon: React.ReactNode }[]>([]);
   const [newPostText, setNewPostText] = useState('');
+  const [newPostImageDataUrl, setNewPostImageDataUrl] = useState('');
+  const [newPostImageName, setNewPostImageName] = useState('');
+  const [isPostingTimeline, setIsPostingTimeline] = useState(false);
+  const timelineImageInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const handleAddExperience = () => {
     setExperiences([...experiences, { id: Date.now(), role: '', company: '', period: '', desc: '' }]);
@@ -180,25 +185,66 @@ export const ProfilePage = ({ userRole }: { userRole: 'client' | 'freelancer' | 
     setPortfolioLinks(portfolioLinks.filter(link => link.id !== id));
   };
 
-  const handlePostTimeline = async () => {
-    if (!newPostText.trim()) {
+  const handleTimelineImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
       return;
     }
 
+    if (!file.type.startsWith('image/')) {
+      event.target.value = '';
+      return;
+    }
+
+    const fileReader = new FileReader();
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      fileReader.onload = () => resolve(typeof fileReader.result === 'string' ? fileReader.result : '');
+      fileReader.onerror = () => reject(fileReader.error || new Error('Failed to read image file'));
+      fileReader.readAsDataURL(file);
+    });
+
+    if (!dataUrl) {
+      event.target.value = '';
+      return;
+    }
+
+    setNewPostImageDataUrl(dataUrl);
+    setNewPostImageName(file.name);
+  };
+
+  const clearTimelineImage = () => {
+    setNewPostImageDataUrl('');
+    setNewPostImageName('');
+
+    if (timelineImageInputRef.current) {
+      timelineImageInputRef.current.value = '';
+    }
+  };
+
+  const handlePostTimeline = async () => {
+    if ((!newPostText.trim() && !newPostImageDataUrl) || isPostingTimeline) {
+      return;
+    }
+
+    setIsPostingTimeline(true);
+
     try {
-      const created = await createSocialPost({ content: newPostText.trim() });
+      const created = await createSocialPost({
+        content: newPostText.trim() || undefined,
+        imageDataUrl: newPostImageDataUrl || undefined,
+      });
       setTimelinePosts((current) => [
-        {
-          ...created,
-          likesCount: 0,
-          commentsCount: 0,
-          likedByViewer: false,
-        },
+        created,
         ...current,
       ]);
       setNewPostText('');
+      clearTimelineImage();
     } catch (error) {
       console.error('Failed to create timeline post:', error);
+    } finally {
+      setIsPostingTimeline(false);
     }
   };
 
@@ -795,37 +841,67 @@ export const ProfilePage = ({ userRole }: { userRole: 'client' | 'freelancer' | 
 
             {activeTab === 'Timeline' && (
               <div className="space-y-6">
-                <div className="card p-4 flex gap-4 items-center">
-                  <div className="w-10 h-10 rounded-[10px] bg-ink/10 shrink-0 overflow-hidden">
-                    <img src={profileImage} className="w-full h-full object-cover" alt="Avatar" referrerPolicy="no-referrer" />
+                <div className="card p-4 space-y-4">
+                  <div className="flex gap-4 items-center">
+                    <div className="w-10 h-10 rounded-[10px] bg-ink/10 shrink-0 overflow-hidden">
+                      <img src={profileImage} className="w-full h-full object-cover" alt="Avatar" referrerPolicy="no-referrer" />
+                    </div>
+                    <input 
+                      type="text" 
+                      value={newPostText}
+                      onChange={(e) => setNewPostText(e.target.value)}
+                      placeholder="What's on your mind?" 
+                      className="w-full bg-transparent border-none focus:ring-0 text-sm outline-none" 
+                      onKeyDown={(e) => e.key === 'Enter' && handlePostTimeline()}
+                    />
+                    <button onClick={handlePostTimeline} disabled={isPostingTimeline || (!newPostText.trim() && !newPostImageDataUrl)} className="btn-primary py-2 px-4 shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"><Send size={16} /></button>
                   </div>
-                  <input 
-                    type="text" 
-                    value={newPostText}
-                    onChange={(e) => setNewPostText(e.target.value)}
-                    placeholder="What's on your mind?" 
-                    className="w-full bg-transparent border-none focus:ring-0 text-sm outline-none" 
-                    onKeyDown={(e) => e.key === 'Enter' && handlePostTimeline()}
-                  />
-                  <button onClick={handlePostTimeline} className="btn-primary py-2 px-4 shrink-0"><Send size={16} /></button>
+                  <div className="flex items-center justify-between gap-3">
+                    <input
+                      ref={timelineImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleTimelineImageChange}
+                    />
+                    <button type="button" onClick={() => timelineImageInputRef.current?.click()} className="btn-outline py-2 px-4 text-xs flex items-center gap-2">
+                      <Upload size={16} /> Attach image
+                    </button>
+                    {newPostImageName && (
+                      <div className="flex items-center gap-2 text-xs text-muted ml-auto">
+                        <span className="truncate max-w-48">{newPostImageName}</span>
+                        <button type="button" onClick={clearTimelineImage} className="text-muted hover:text-ink">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {newPostImageDataUrl && (
+                    <div className="relative rounded-[15px] overflow-hidden border border-border bg-ink/5">
+                      <img src={newPostImageDataUrl} className="w-full max-h-72 object-cover" alt="New post attachment" />
+                      <button type="button" onClick={clearTimelineImage} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-bg/80 text-ink flex items-center justify-center">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {timelinePosts.map((post) => (
                   <div key={post.id} className="card p-6 hover:border-accent-orange transition-colors">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <img src={profileImage} className="w-10 h-10 rounded-[10px] object-cover" alt="Avatar" referrerPolicy="no-referrer" />
+                        <img src={toApiAssetUrl(post.authorAvatar) || profileImage} className="w-10 h-10 rounded-[10px] object-cover" alt="Avatar" referrerPolicy="no-referrer" />
                         <div>
-                          <h4 className="font-bold text-sm">{displayName}</h4>
+                          <h4 className="font-bold text-sm">{post.authorUsername || displayName}</h4>
                           <p className="text-xs text-muted">{formatRelativeTime(post.createdAt)}</p>
                         </div>
                       </div>
                       <button className="text-muted hover:text-ink"><MoreHorizontal size={16} /></button>
                     </div>
                     <Link to={`/post/${post.id}`} className="block group">
-                      <p className="text-sm mb-4 group-hover:text-accent-orange transition-colors">{post.content}</p>
+                      {post.content && <p className="text-sm mb-4 group-hover:text-accent-orange transition-colors">{post.content}</p>}
                       {post.imageUrl && (
-                        <img src={post.imageUrl} className="w-full rounded-[15px] mb-4 object-cover max-h-64" alt="Post content" referrerPolicy="no-referrer" />
+                        <img src={toApiAssetUrl(post.imageUrl)} className="w-full rounded-[15px] mb-4 object-cover max-h-64" alt="Post content" referrerPolicy="no-referrer" />
                       )}
                     </Link>
                     <div className="flex items-center gap-6 text-muted border-t border-border pt-4">

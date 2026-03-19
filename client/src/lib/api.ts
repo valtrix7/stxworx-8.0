@@ -245,6 +245,9 @@ export interface ApiSocialPost {
   userId: number;
   content: string;
   imageUrl?: string | null;
+  authorStxAddress?: string | null;
+  authorUsername?: string | null;
+  authorAvatar?: string | null;
   likesCount: number;
   commentsCount: number;
   likedByViewer: boolean;
@@ -363,6 +366,22 @@ export function toHandle(
   }
 
   return `@${formatAddress(user.stxAddress).replace(/\.\.\./g, '_')}`;
+}
+
+export function toApiAssetUrl(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+
+  if (rawBase.startsWith('http://') || rawBase.startsWith('https://')) {
+    return new URL(value, rawBase.endsWith('/') ? rawBase : `${rawBase}/`).toString();
+  }
+
+  return value;
 }
 
 export function formatTokenAmount(value: string | number | null | undefined) {
@@ -707,7 +726,11 @@ export async function getSocialPosts(address: string) {
   return apiRequest<ApiSocialPost[]>(`/social/${address}/posts`, { method: 'GET' });
 }
 
-export async function createSocialPost(input: { content: string; imageUrl?: string }) {
+export async function getSocialFeed() {
+  return apiRequest<ApiSocialPost[]>('/social/feed', { method: 'GET' });
+}
+
+export async function createSocialPost(input: { content?: string; imageDataUrl?: string }) {
   return apiRequest<ApiSocialPost>('/social/posts', {
     method: 'POST',
     body: JSON.stringify(input),

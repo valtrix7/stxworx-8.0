@@ -44,7 +44,24 @@ export const userController = {
         .where(eq(users.stxAddress, address));
 
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        // Return a default profile structure for non-existent users
+        return res.status(200).json({
+          id: 0,
+          stxAddress: address,
+          username: null,
+          role: null,
+          isActive: false,
+          totalEarned: "0",
+          specialty: null,
+          hourlyRate: null,
+          about: null,
+          skills: null,
+          portfolio: null,
+          company: null,
+          projectInterests: null,
+          avatar: null,
+          createdAt: null,
+        });
       }
 
       return res.status(200).json(user);
