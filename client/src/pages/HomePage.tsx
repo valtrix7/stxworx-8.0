@@ -412,12 +412,12 @@ export const HomePage = () => {
         <section className="mb-20">
           <div className="relative rounded-[15px] overflow-hidden bg-accent-blue p-12 md:p-20 flex flex-col md:flex-row items-center justify-between gap-10">
             <div className="relative z-10 max-w-xl">
-              <span className="bg-white/20 backdrop-blur-md px-4 py-1 rounded-[15px] text-xs font-bold mb-6 inline-block">Upcoming Event</span>
-              <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-none mb-8">
-                BIG GLOBAL E-COMMERCE CONFERENCE
+              <span className="bg-white/20 backdrop-blur-md px-4 py-1 rounded-[15px] text-xs font-bold mb-6 inline-block uppercase">stxworx live on dora hacks</span>
+              <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-none mb-8 uppercase">
+                build the future of decentralized tech
               </h2>
-              <button className="bg-white text-bg px-8 py-4 rounded-[15px] font-bold hover:bg-accent-orange transition-all">
-                Buy a Ticket
+              <button className="bg-white text-bg px-8 py-4 rounded-[15px] font-bold hover:bg-accent-orange transition-all uppercase">
+                vote now
               </button>
             </div>
             <div className="relative z-10 grid grid-cols-2 gap-4">
